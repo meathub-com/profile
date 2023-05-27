@@ -1,9 +1,10 @@
+-- script.sql
 CREATE TABLE IF NOT EXISTS sellers
 (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(100) NOT NULL,
     user_id  INT NOT NULL
-)
+);
 
 CREATE TABLE IF NOT EXISTS addresses
 (
@@ -15,4 +16,4 @@ CREATE TABLE IF NOT EXISTS addresses
     postal_code VARCHAR(20) NOT NULL,
     country     VARCHAR(100) NOT NULL,
     FOREIGN KEY (seller_id) REFERENCES sellers (id)
-    );
+);

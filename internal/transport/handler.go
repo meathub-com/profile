@@ -29,7 +29,7 @@ func NewHandler(service SellerService) *Handler {
 	}
 	h.mapRoutes()
 	h.Server = &http.Server{
-		Addr: "0.0.0.0:8080",
+		Addr: "0.0.0.0:8081",
 		// Good practice to set timeouts to avoid Slowloris attacks.
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
@@ -41,7 +41,7 @@ func NewHandler(service SellerService) *Handler {
 }
 
 func (h *Handler) mapRoutes() {
-	h.Router.Get("/profiles/{id}", h.GetSeller)
+	h.Router.Get("/profiles/{id}", JWTAuth(h.GetSeller))
 }
 
 func (h *Handler) GetSeller(w http.ResponseWriter, r *http.Request) {

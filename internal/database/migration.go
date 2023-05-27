@@ -24,6 +24,7 @@ func (d *Database) MigrateDB() error {
 		log.Error(err.Error())
 		return err
 	}
+	m.Force(1)
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("could not migrate the database: %w", err)
