@@ -20,11 +20,11 @@ func (d *Database) MigrateDB() error {
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://migrations",
 		"postgres", driver)
-	if err != nil {
-		log.Error(err.Error())
+	m.Force(1)
+	err = m.Down()
+	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}
-	m.Force(1)
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("could not migrate the database: %w", err)

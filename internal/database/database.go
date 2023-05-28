@@ -14,8 +14,10 @@ type Database struct {
 	Client *sqlx.DB
 }
 
-const maxRetries = 5
-const retryInterval = time.Second * 5
+const (
+	maxRetries    = 5
+	retryInterval = time.Second * 5
+)
 
 func NewDatabase() (*Database, error) {
 	log.Info("Setting up new database connection")
@@ -66,10 +68,12 @@ func (d *Database) GetSeller(ctx context.Context, id string) (seller.Seller, err
               INNER JOIN addresses a ON s.id = a.seller_id 
               WHERE s.id = $1`
 	err := d.Client.GetContext(ctx, &sellerRow, query, id)
-	s := convertSellerRowToSeller(sellerRow)
 	if err != nil {
-		return s, err
+		return seller.Seller{}, err
 	}
+
+	s := convertSellerRowToSeller(sellerRow)
+
 	return s, nil
 }
 

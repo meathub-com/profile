@@ -49,7 +49,7 @@ func (h *Handler) GetSeller(w http.ResponseWriter, r *http.Request) {
 	seller, err := h.Service.GetSeller(context.Background(), id)
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
