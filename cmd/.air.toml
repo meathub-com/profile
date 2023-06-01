@@ -1,0 +1,21 @@
+# .air.toml
+
+root = "."
+tmp_dir = "tmp"
+build_dir = "build"
+
+[build]
+cmd = "go build -o ./build/main ./cmd/tmp"
+bin = "./build/main"
+
+[[build.watch]]
+dir = "cmd"
+exts = ["go"]
+
+[[build.watch]]
+dir = "internal"
+exts = ["go"]
+
+[[build.watch]]
+dir = "migrations"
+exts = ["sql"]

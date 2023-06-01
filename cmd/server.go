@@ -3,7 +3,7 @@ package main
 import (
 	log "github.com/sirupsen/logrus"
 	"profile/internal/database"
-	"profile/internal/seller"
+	"profile/internal/profile"
 	"profile/internal/transport"
 )
 
@@ -21,7 +21,7 @@ func Run() error {
 	}
 	log.Info("database migrated")
 	log.Info("creating new user service")
-	userService := seller.NewService(store)
+	userService := profile.NewService(store)
 	log.Info("creating new transport handler")
 	handler := transport.NewHandler(userService)
 	log.Info("starting server")

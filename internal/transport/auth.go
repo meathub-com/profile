@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"errors"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
@@ -8,8 +9,8 @@ import (
 	"strings"
 )
 
-// validateToken - validates an incoming jwt token
-func validateToken(accessToken string) bool {
+// validateToken - validates an incoming JWT token
+func validateToken(accessToken string) (map[string]interface{}, error) {
 	var mySigningKey = []byte("missionimpossible")
 	token, err := jwt.Parse(accessToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -19,35 +20,48 @@ func validateToken(accessToken string) bool {
 	})
 
 	if err != nil {
-		return false
+		return nil, err
 	}
 
-	return token.Valid
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("could not validate auth token")
 }
 
 // JWTAuth - a handy middleware function that will provide basic auth around specific endpoints
 func JWTAuth(original func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header["Authorization"]
-		if authHeader == nil {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			log.Error("an unauthorized request has been made")
 			return
 		}
 
-		authHeaderParts := strings.Split(authHeader[0], " ")
+		authHeaderParts := strings.Split(authHeader, " ")
 		if len(authHeaderParts) != 2 || strings.ToLower(authHeaderParts[0]) != "bearer" {
 			w.WriteHeader(http.StatusUnauthorized)
 			log.Error("authorization header could not be parsed")
 			return
 		}
 
-		if validateToken(authHeaderParts[1]) {
-			original(w, r)
-		} else {
+		claims, err := validateToken(authHeaderParts[1])
+		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			log.Error("could not validate incoming token")
 			return
 		}
+
+		userID, ok := claims["sub"].(string)
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Error("user ID not found in token claims")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "user_id", userID)
+		original(w, r.WithContext(ctx))
 	}
 }

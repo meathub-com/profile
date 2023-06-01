@@ -13,7 +13,7 @@ import (
 
 type Handler struct {
 	Router  *chi.Mux
-	Service SellerService
+	Service Service
 	Server  *http.Server
 }
 
@@ -21,7 +21,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func NewHandler(service SellerService) *Handler {
+func NewHandler(service Service) *Handler {
 	h := &Handler{
 
 		Router:  chi.NewRouter(),
@@ -29,41 +29,27 @@ func NewHandler(service SellerService) *Handler {
 	}
 	h.mapRoutes()
 	h.Server = &http.Server{
-		Addr: "0.0.0.0:8081",
-		// Good practice to set timeouts to avoid Slowloris attacks.
+		Addr:         "0.0.0.0:8081",
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
 		Handler:      h.Router,
 	}
-	// return our wonderful handler
 	return h
 }
 
 func (h *Handler) mapRoutes() {
-	h.Router.Get("/profiles/{id}", JWTAuth(h.GetSeller))
-}
-
-func (h *Handler) GetSeller(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	seller, err := h.Service.GetSeller(context.Background(), id)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(seller); err != nil {
-		panic(err)
-	}
+	h.Router.Get("/profiles/{id}", JWTAuth(h.GetProfile))
+	h.Router.Get("/profiles/user/{id}", JWTAuth(h.GetProfileByUser))
+	h.Router.Get("/profiles", JWTAuth(h.GetProfiles))
+	h.Router.Post("/profiles", JWTAuth(h.CreateProfile))
 }
 
 func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(Response{Message: "I am Alive!"}); err != nil {
-		panic(err)
+		log.Errorf("Error getting profile: %v", err)
 	}
 }
 
