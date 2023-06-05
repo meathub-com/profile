@@ -62,31 +62,32 @@ func (d *Database) Ping() error {
 
 func (d *Database) GetProfiles(ctx context.Context) ([]profile.Profile, error) {
 	var profileRows []ProfileRow
-	query := `SELECT s.id, s.name, a.street AS address_street, a.city AS address_city, 
-					 a.state AS address_state, a.postal_code AS address_zip, 
-					 a.country AS address_country, s.user_id 
-			  FROM profiles s 
-			  INNER JOIN addresses a ON s.id = a.profile_id`
+	query := `SELECT s.id, s.name, a.street AS address_street, a.city AS address_city, a.state AS address_state, a.postal_code AS address_zip, a.country AS address_country
+	FROM profiles s
+	INNER JOIN address a ON s.id = a.profile_id;`
+
 	err := d.Client.SelectContext(ctx, &profileRows, query)
 	if err != nil {
+		log.WithError(err).Error("Error fetching profiles")
 		return []profile.Profile{}, profile.ErrFetchingProfile
 	}
 
 	var profiles []profile.Profile
 	for _, profileRow := range profileRows {
-		s := convertProfileRowToProfile(profileRow)
-		profiles = append(profiles, s)
+		p := convertProfileRowToProfile(profileRow)
+		profiles = append(profiles, p)
 	}
 
 	return profiles, nil
 }
+
 func (d *Database) GetProfile(ctx context.Context, id string) (profile.Profile, error) {
 	var profileRow ProfileRow
 	query := `SELECT s.id, s.name, a.street AS address_street, a.city AS address_city, 
                      a.state AS address_state, a.postal_code AS address_zip, 
                      a.country AS address_country, s.user_id 
-              FROM profiles s 
-              INNER JOIN addresses a ON s.id = a.profile_id 
+              FROM profile s 
+              INNER JOIN address a ON s.id = a.profile_id 
               WHERE s.id = $1`
 	err := d.Client.GetContext(ctx, &profileRow, query, id)
 	if err != nil {
@@ -102,33 +103,44 @@ func (d *Database) GetProfile(ctx context.Context, id string) (profile.Profile, 
 func (d *Database) PostProfile(ctx context.Context, p profile.Profile) (profile.Profile, error) {
 	tx, err := d.Client.BeginTx(ctx, nil)
 	if err != nil {
+		log.WithError(err).Error("Error starting transaction")
 		return profile.Profile{}, profile.ErrFetchingProfile
 	}
-	query := "INSERT INTO profiles (name, user_id) VALUES ($1, $2) RETURNING id"
-	err = tx.QueryRowContext(ctx, query, p.Name, p.UserId).Scan(&p.ID)
+
+	query := "INSERT INTO profile (name) VALUES ($1) RETURNING id"
+	err = tx.QueryRowContext(ctx, query, p.Name).Scan(&p.ID)
 	if err != nil {
+		log.WithError(err).Error("Error inserting profile")
 		tx.Rollback()
 		return profile.Profile{}, profile.ErrFetchingProfile
 	}
-	query = "INSERT INTO addresses (profile_id, street, city, state, postal_code, country) VALUES ($1, $2, $3, $4, $5, $6)"
+
+	query = "INSERT INTO address (profile_id, street, city, state, postal_code, country) VALUES ($1, $2, $3, $4, $5, $6)"
 	_, err = tx.ExecContext(ctx, query, p.ID, p.Address.Street, p.Address.City, p.Address.State, p.Address.Zip, p.Address.Country)
 	if err != nil {
+		log.WithError(err).Error("Error inserting address")
 		tx.Rollback()
 		return profile.Profile{}, profile.ErrFetchingProfile
 	}
+
 	err = tx.Commit()
-	return p, err
+	if err != nil {
+		log.WithError(err).Error("Error committing transaction")
+		return profile.Profile{}, err
+	}
+
+	return p, nil
 }
 
 func (d *Database) UpdateProfile(ctx context.Context, p profile.Profile) (profile.Profile, error) {
 	tx, err := d.Client.BeginTx(ctx, nil)
-	query := "UPDATE profiles SET name = $1 WHERE id = $2"
+	query := "UPDATE profile SET name = $1 WHERE id = $2"
 	_, err = d.Client.ExecContext(ctx, query, p.Name, p.ID)
 	if err != nil {
 		tx.Rollback()
 		return profile.Profile{}, profile.ErrUpdatingProfile
 	}
-	query = "UPDATE addresses SET street = $1, city = $2, state = $3, postal_code = $4, country = $5 WHERE profile_id = $6"
+	query = "UPDATE address SET street = $1, city = $2, state = $3, postal_code = $4, country = $5 WHERE profile_id = $6"
 	_, err = d.Client.ExecContext(ctx, query, p.Address.Street, p.Address.City, p.Address.State, p.Address.Zip, p.Address.Country, p.ID)
 	if err != nil {
 		tx.Rollback()
@@ -143,13 +155,13 @@ func (d *Database) DeleteProfile(ctx context.Context, s string) error {
 	if err != nil {
 		return err
 	}
-	query := "DELETE FROM addresses WHERE profile_id = $1"
+	query := "DELETE FROM address WHERE profile_id = $1"
 	_, err = tx.ExecContext(ctx, query, s)
 	if err != nil {
 		tx.Rollback()
 		return profile.ErrDeletingProfile
 	}
-	query = "DELETE FROM profiles WHERE id = $1"
+	query = "DELETE FROM profile WHERE id = $1"
 	_, err = tx.ExecContext(ctx, query, s)
 	if err != nil {
 		tx.Rollback()
