@@ -39,10 +39,10 @@ func NewHandler(service Service) *Handler {
 }
 
 func (h *Handler) mapRoutes() {
-	h.Router.Get("/profiles/{id}", JWTAuth(h.GetProfile))
-	h.Router.Get("/profiles/user/{id}", JWTAuth(h.GetProfileByUser))
-	h.Router.Get("/profiles", JWTAuth(h.GetProfiles))
-	h.Router.Post("/profiles", JWTAuth(h.CreateProfile))
+	h.Router.Get("/profiles/{id}", (h.GetProfile))
+	h.Router.Get("/profiles/user/{id}", (h.GetProfileByUser))
+	h.Router.Get("/profiles", (h.GetProfiles))
+	h.Router.Post("/profiles", (h.CreateProfile))
 }
 
 func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
