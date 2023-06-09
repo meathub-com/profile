@@ -60,14 +60,14 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.UserId = r.Context().Value("user_id").(string)
-	profile, err := h.Service.PostProfile(r.Context(), p)
+	savedProfile, err := h.Service.PostProfile(r.Context(), p)
 	if err != nil {
 		log.Errorf("Error posting profile: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(profile); err != nil {
+	if err := json.NewEncoder(w).Encode(savedProfile); err != nil {
 		log.Errorf("Error getting profile: %v", err)
 	}
 }

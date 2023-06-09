@@ -1,3 +1,3 @@
-build-and-push:
+bp:
 	docker build -t jromankiew/profile .
 	docker push jromankiew/profile
