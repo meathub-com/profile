@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	chi "github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,6 +44,10 @@ func (h *Handler) mapRoutes() {
 	h.Router.Get("/profiles/user/{id}", h.GetProfileByUser)
 	h.Router.Get("/profiles", h.GetProfiles)
 	h.Router.Post("/profiles", JWTAuth(h.CreateProfile))
+	h.Router.Get("/profiles/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+	))
+	h.Router.Post("/profiles/{id}/offer", JWTAuth(h.CreateOffer))
 }
 
 func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {

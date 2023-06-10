@@ -51,6 +51,15 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CreateProfile godoc
+// @Summary Create a new profile
+// @Description Create a new profile
+// @Tags profiles
+// @Accept  json
+// @Produce  json
+// @Param profile body profile.Profile true "Profile info"
+// @Success 200 {object} profile.Profile
+// @Router /profiles [post]
 func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	var p profile.Profile
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {

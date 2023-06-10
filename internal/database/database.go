@@ -172,6 +172,7 @@ func (d *Database) DeleteProfile(ctx context.Context, s string) error {
 }
 func getOrDefault(key, defaultValue string) string {
 	value := os.Getenv(key)
+	log.Infof("Env var %s: %s", key, value)
 	if value == "" {
 		return defaultValue
 	}

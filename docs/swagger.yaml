@@ -1,0 +1,51 @@
+definitions:
+  profile.Address:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      state:
+        type: string
+      street:
+        type: string
+      zip:
+        type: string
+    type: object
+  profile.Profile:
+    properties:
+      address:
+        $ref: '#/definitions/profile.Address'
+      id:
+        type: string
+      name:
+        type: string
+      userId:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /profiles:
+    post:
+      consumes:
+      - application/json
+      description: Create a new profile
+      parameters:
+      - description: Profile info
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/profile.Profile'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/profile.Profile'
+      summary: Create a new profile
+      tags:
+      - profiles
+swagger: "2.0"
