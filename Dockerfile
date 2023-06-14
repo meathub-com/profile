@@ -18,7 +18,7 @@ COPY . .
 RUN go build -o server ./cmd
 
 # Expose the desired port (replace 8080 with your application's port)
-EXPOSE 8080
+EXPOSE 8081
 
 # Set the entry point for the container
 CMD ["./server"]

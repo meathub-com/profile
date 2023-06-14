@@ -48,6 +48,7 @@ func (h *Handler) mapRoutes() {
 		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
 	))
 	h.Router.Post("/profiles/{id}/offer", JWTAuth(h.CreateOffer))
+	h.Router.Get("/profiles/offerstest", h.TestOfferService)
 }
 
 func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
