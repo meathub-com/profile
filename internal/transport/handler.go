@@ -2,7 +2,6 @@ package transport
 
 import (
 	"context"
-	"encoding/json"
 	chi "github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -16,6 +15,7 @@ type Handler struct {
 	Router  *chi.Mux
 	Service Service
 	Server  *http.Server
+	Client  *http.Client
 }
 
 type Response struct {
@@ -24,7 +24,7 @@ type Response struct {
 
 func NewHandler(service Service) *Handler {
 	h := &Handler{
-
+		Client:  &http.Client{},
 		Router:  chi.NewRouter(),
 		Service: service,
 	}
@@ -40,26 +40,16 @@ func NewHandler(service Service) *Handler {
 }
 
 func (h *Handler) mapRoutes() {
-	h.Router.Get("/profiles/{id}", h.GetProfile)
-	h.Router.Get("/profiles/user/{id}", h.GetProfileByUser)
-	h.Router.Get("/profiles", h.GetProfiles)
+	h.Router.Get("/profiles/{id}", JWTAuth(h.GetProfile))
+	h.Router.Get("/profiles/user/{id}", JWTAuth(h.GetProfileByUser))
+	h.Router.Get("/profiles", JWTAuth(h.GetProfiles))
 	h.Router.Post("/profiles", JWTAuth(h.CreateProfile))
 	h.Router.Get("/profiles/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
 	))
 	h.Router.Post("/profiles/{id}/offer", JWTAuth(h.CreateOffer))
-	h.Router.Get("/profiles/offerstest", h.TestOfferService)
 }
 
-func (h *Handler) AliveCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(Response{Message: "I am Alive!"}); err != nil {
-		log.Errorf("Error getting profile: %v", err)
-	}
-}
-
-// Serve - gracefully serves our newly set up handler function
 func (h *Handler) Serve() error {
 	go func() {
 		if err := h.Server.ListenAndServe(); err != nil {

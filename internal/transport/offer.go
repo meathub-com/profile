@@ -3,89 +3,111 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 )
 
-type Offer struct {
+const ()
+const (
+	ContentType = "Content-Type"
+	JsonType    = "application/json"
+)
+
+const (
+	OfferServiceUrl = "http://offers:8082/offers"
+)
+
+type OfferResponse struct {
 	ID    string `json:"id"`
-	Name  string `json:"name"`
+	Name  string `json:"offerName"`
 	Item  string `json:"item"`
 	Price int    `json:"price"`
 }
 
-func (h *Handler) TestOfferService(w http.ResponseWriter, r *http.Request) {
-	getEndpoints := []string{
-		"http://offers:8082/offers/1", // test GetOffer
-		"http://offers:8082/offers",   // test GetOffers
+func (h *Handler) CreateOfferV2(w http.ResponseWriter, r *http.Request) {
+	//Get the profile id from the URL
+	profileId := chi.URLParam(r, "id")
+	if profileId == "" {
+		log.Errorf("Error getting profile id")
+		writeError(w, http.StatusBadRequest, "Error getting profile id", nil)
+		return
+	}
+	//Find profile by id
+	foundProfile, err := h.Service.GetProfile(r.Context(), profileId)
+	if err != nil {
+		log.Errorf("Error getting profile: %v", err)
+		writeError(w, http.StatusNotFound, fmt.Sprintf("Error fetching profile with id %v", profileId), err)
+		return
+	}
+	log.Infof("Found profile: %v", foundProfile)
+
+	//Read request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Errorf("Error reading request body: %v", err)
+		writeError(w, http.StatusBadRequest, "Error reading request body", err)
+		return
+	}
+	//Create a new offer by company profile
+	url := OfferServiceUrl
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "Error creating request", err)
+		return
+	}
+	req.Header.Set(ContentType, JsonType)
+
+	resp, err := h.Client.Do(req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Error creating offer", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	response, err := io.ReadAll(resp.Body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Error reading response body", err)
+		return
 	}
 
-	postEndpoints := map[string]string{
-		"http://offers:8082/offers": `{
-			"offerName": "Organic Free Range Chicken",
-			"item": "fewfeff",
-			"price": 22
-		}`,
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var offerResponse OfferResponse
+		err := json.Unmarshal(response, &offerResponse)
+		if err != nil {
+			log.Errorf("Error decoding offer: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		offerResponseJson, err := json.Marshal(offerResponse)
+		if err != nil {
+			log.Errorf("Error encoding offer response: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writeResponse(w, http.StatusOK, string(offerResponseJson))
+	default:
+		errorMessage := "Unexpected status code: " + strconv.Itoa(resp.StatusCode)
+		writeError(w, http.StatusInternalServerError, errorMessage, nil)
 	}
 
-	for _, endpoint := range getEndpoints {
-		req, err := http.NewRequest("GET", endpoint, nil)
-		if err != nil {
-			log.Errorf("Error creating request: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Errorf("Error making request to %s: %v", endpoint, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Errorf("Error: status code for %s is %d", endpoint, resp.StatusCode)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		log.Infof("Successfully connected to %s with status code: %d", endpoint, resp.StatusCode)
+}
+func writeError(w http.ResponseWriter, httpStatus int, message string, err error) {
+	log.Errorf("%s: %v", message, err)
+	http.Error(w, fmt.Sprintf("%s: %v", message, err), httpStatus)
+}
+func writeResponse(w http.ResponseWriter, httpStatus int, message string) {
+	w.WriteHeader(httpStatus)
+	write, err := w.Write([]byte(message))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Error writing response", err)
 	}
-
-	for endpoint, body := range postEndpoints {
-		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(body))
-		if err != nil {
-			log.Errorf("Error creating request: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Errorf("Error making request to %s: %v", endpoint, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Errorf("Error: status code for %s is %d", endpoint, resp.StatusCode)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		log.Infof("Successfully connected to %s with status code: %d", endpoint, resp.StatusCode)
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("All endpoints returned status code 200"))
+	log.Infof("Wrote %v bytes", write)
 }
 
 func (h *Handler) CreateOffer(w http.ResponseWriter, r *http.Request) {
@@ -109,18 +131,16 @@ func (h *Handler) CreateOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a new HTTP request
-	url := "http://offers:8082/offers"
+	url := OfferServiceUrl
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
 		log.Errorf("Error creating request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(ContentType, JsonType)
 
-	// Make the HTTP request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.Client.Do(req)
 	if err != nil {
 		log.Errorf("Error making request: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -128,7 +148,6 @@ func (h *Handler) CreateOffer(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Read the response
 	response, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("Error reading response: %v", err)
@@ -157,11 +176,4 @@ func (h *Handler) CreateOffer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 		w.Write([]byte(errorMessage))
 	}
-}
-
-type OfferResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"offerName"`
-	Item  string `json:"item"`
-	Price int    `json:"price"`
 }
