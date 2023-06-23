@@ -123,7 +123,7 @@ func (h *Handler) CreateOffer(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Found profile: %v", foundProfile)
 
 	// Read the body content
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Errorf("Error reading request body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)

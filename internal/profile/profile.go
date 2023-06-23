@@ -32,6 +32,7 @@ type Store interface {
 	UpdateProfile(context.Context, Profile) (Profile, error)
 	DeleteProfile(context.Context, string) error
 	GetProfiles(context.Context) ([]Profile, error)
+	GetProfilesByIds(ctx context.Context, ids []string) ([]Profile, error)
 }
 type Service struct {
 	Store Store
@@ -56,4 +57,8 @@ func (s *Service) DeleteProfile(ctx context.Context, id string) error {
 }
 func (s *Service) GetProfiles(ctx context.Context) ([]Profile, error) {
 	return s.Store.GetProfiles(ctx)
+}
+
+func (s *Service) GetProfilesByIds(ctx context.Context, ids []string) ([]Profile, error) {
+	return s.Store.GetProfilesByIds(ctx, ids)
 }

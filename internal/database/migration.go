@@ -21,7 +21,7 @@ func (d *Database) MigrateDB() error {
 		"file://migrations",
 		"postgres", driver)
 	m.Force(1)
-	//err = m.Down()
+	err = m.Down()
 	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}

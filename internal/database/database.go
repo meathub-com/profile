@@ -15,10 +15,18 @@ type Database struct {
 }
 
 const (
-	maxRetries    = 5
+	maxRetries    = 10
 	retryInterval = time.Second * 5
 )
 
+func getOrDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	log.Infof("Env var %s: %s", key, value)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
 func NewDatabase() (*Database, error) {
 	log.Info("Setting up new database connection")
 
@@ -170,11 +178,29 @@ func (d *Database) DeleteProfile(ctx context.Context, s string) error {
 	err = tx.Commit()
 	return err
 }
-func getOrDefault(key, defaultValue string) string {
-	value := os.Getenv(key)
-	log.Infof("Env var %s: %s", key, value)
-	if value == "" {
-		return defaultValue
+
+func (d *Database) GetProfilesByIds(ctx context.Context, ids []string) ([]profile.Profile, error) {
+	var profileRows []ProfileRow
+	query, args, err := sqlx.In(`SELECT s.id, s.name, a.street AS address_street, a.city AS address_city, a.state AS address_state, a.postal_code AS address_zip, a.country AS address_country
+	FROM profiles s
+	INNER JOIN address a ON s.id = a.profile_id
+	WHERE s.id IN (?)`, ids)
+	if err != nil {
+		log.WithError(err).Error("Error building query")
+		return []profile.Profile{}, profile.ErrFetchingProfile
 	}
-	return value
+	query = d.Client.Rebind(query)
+	err = d.Client.SelectContext(ctx, &profileRows, query, args...)
+	if err != nil {
+		log.WithError(err).Error("Error fetching profiles")
+		return []profile.Profile{}, profile.ErrFetchingProfile
+	}
+
+	var profiles []profile.Profile
+	for _, profileRow := range profileRows {
+		p := convertProfileRowToProfile(profileRow)
+		profiles = append(profiles, p)
+	}
+
+	return profiles, nil
 }

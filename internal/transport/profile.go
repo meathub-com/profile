@@ -16,6 +16,7 @@ type Service interface {
 	UpdateProfile(ctx context.Context, profile profile.Profile) (profile.Profile, error)
 	DeleteProfile(ctx context.Context, id string) error
 	GetProfiles(ctx context.Context) ([]profile.Profile, error)
+	GetProfilesByIds(ctx context.Context, ids []string) ([]profile.Profile, error)
 }
 
 func (h *Handler) GetProfileByUser(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +30,26 @@ func (h *Handler) GetProfileByUser(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("Error getting profile: %v", err)
 	}
 
+}
+
+func (h *Handler) GetProfilesBatch(w http.ResponseWriter, r *http.Request) {
+	var ids ProfileBatchRequest
+	log.Infof("Getting profiles batch")
+	if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
+		log.Errorf("Error decoding profile: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	profiles, err := h.Service.GetProfilesByIds(r.Context(), ids.IDs)
+	if err != nil {
+		log.Errorf("Error getting profile: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(profiles); err != nil {
+		log.Errorf("Error getting profile: %v", err)
+	}
 }
 
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {

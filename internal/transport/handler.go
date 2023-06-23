@@ -40,7 +40,8 @@ func NewHandler(service Service) *Handler {
 }
 
 func (h *Handler) mapRoutes() {
-	h.Router.Get("/profiles/{id}", JWTAuth(h.GetProfile))
+	h.Router.Post("/profiles/batch", h.GetProfilesBatch)
+	h.Router.Get("/profiles/{id}", h.GetProfile)
 	h.Router.Get("/profiles/user/{id}", JWTAuth(h.GetProfileByUser))
 	h.Router.Get("/profiles", JWTAuth(h.GetProfiles))
 	h.Router.Post("/profiles", JWTAuth(h.CreateProfile))
